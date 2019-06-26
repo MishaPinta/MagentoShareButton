@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../../../Magento/Backend/etc/menu.xsd">
+    <menu>
+        <add id="Pinta_ShareButtons::parent" title="ShareButtons" module="Pinta_ShareButtons" sortOrder="100" resource="Pinta_ShareButtons::parent"/>
+        <add id="Pinta_ShareButtons::index" title="ShareButtons configs" module="Pinta_ShareButtons" sortOrder="10" action="sharebuttons/index" resource="Pinta_ShareButtons::index" parent="Pinta_ShareButtons::parent"/>
+		
+    </menu>
+</config>

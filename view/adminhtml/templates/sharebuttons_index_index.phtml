@@ -1,0 +1,530 @@
+<?php
+
+namespace Pinta\ShareButtons\view\adminhtml\templates;
+
+
+class AdminShareButtons  extends \Magento\Backend\App\Action {
+
+    private $pdata = 'Controller/data/'; // data folder path
+    private $prel = ''; // relative path
+    private $pfull = ''; // full path
+    private $delim_folder_base_app = '/Pinta/ShareButtons/'; // Delimiter to app folder
+    protected $objectManager;
+    protected $request;
+    protected $filesystem;
+    function __construct()
+    {
+        $this->objectManager = \Magento\Framework\App\ObjectManager::getInstance();
+        $this->request = $this->objectManager->get('\Magento\Framework\App\Request\Http');
+        $this->pfull = $this->put(true);
+        $this->prel = $this->put();
+
+    }
+
+    public function show()
+    {
+        $this->saveData();
+        return $this->getHtml();
+    }
+
+    private function saveData() {
+        //   $post = $_POST;
+        $post = $this->request->getPost();
+        if (empty($post['form_key']))
+            return false;
+
+        $params = isset($post['params']) ? $post['params'] : false;
+        $socials = isset($post['socials']) ? $post['socials'] : false;
+
+        if (!empty($params)) {
+            $this->saveDb('params', $params);
+        }
+
+        if (!empty($socials)) {
+            $this->saveDb('socials', $socials);
+        }
+
+    }
+
+    private function l($t) {
+        return $t;
+    }
+
+    public function getVersions(){
+        return array(1,2,3);
+    }
+
+    public  function execute(){
+
+    }
+
+
+    private function put($full=false) {
+        $putmodule = explode($this->delim_folder_base_app, __DIR__);
+        $putmodule = $putmodule[0] . $this->delim_folder_base_app;
+
+        if ($full)
+            return $putmodule;
+
+        $put = explode($_SERVER['HTTP_HOST'], $putmodule);
+        $put = trim($put[count($put)-1], '/');
+        $put = trim($put, "\/");
+        return '/'.$put . '/';
+    }
+
+    private function getIcon($code, $v) {
+        if (!file_exists($this->pfull . $this->pdata . 'images/style_'.$v . '/'.$code.'.png'))
+            return '';
+
+        return $this->prel . $this->pdata . 'images/style_'.$v . '/'.$code.'.png';
+    }
+
+    private function getIcons($socials){
+        $result = array();
+        foreach($socials as $code => $soc) {
+            foreach($this->getVersions() as $v) {
+                $icon = $this->getIcon($code, $v);
+                $result[$code][$v] = $icon;
+            }
+        }
+        return $result;
+    }
+
+    private function getDb($table){
+        if (!file_exists($this->pfull . $this->pdata.'db/' . $table))
+            return array();
+
+        $json = file_get_contents($this->pfull . $this->pdata.'db/' . $table);
+        return json_decode($json, true);
+    }
+
+    private function saveDb($table, $array = array()){
+        $json = json_encode($array);
+
+        file_put_contents($this->pfull . $this->pdata.'db/' . $table, $json);
+    }
+
+    public function getData()
+    {
+
+        $default = array(
+            'viber' => array(
+                'title' => 'Viber',
+                'code' => 'viber',
+                'placeholder' => '380991231212',
+                'template_href' => 'viber://chat?number=',
+                'href' => '',
+                'onclick' => '',
+                'active' => 0
+            ),
+            'telegram' => array(
+                'title' => 'Telegram',
+                'code' => 'telegram',
+                'placeholder' => 'login',
+                'template_href' => 'tg://resolve?domain=',
+                'href' => '',
+                'onclick' => '',
+                'active' => 0
+            ),
+            'skype' => array(
+                'title' => 'Skype',
+                'code' => 'skype',
+                'placeholder' => 'login',
+                'template_href' => 'skype:',
+                'href' => '',
+                'onclick' => '',
+                'active' => 0
+            ),
+            'whatsapp' => array(
+                'title' => 'WhatsApp',
+                'code' => 'whatsapp',
+                'placeholder' => '380991231212',
+                'template_href' => 'https://api.whatsapp.com/send?phone=',
+                'href' => '',
+                'onclick' => '',
+                'active' => 0
+            ),
+            'facebook' => array(
+                'title' => 'Messenger',
+                'code' => 'facebook',
+                'placeholder' => 'login',
+                'template_href' => 'https://m.me/',
+                'href' => '',
+                'onclick' => '',
+                'active' => 0
+            ),
+        );
+
+        $socials = $this->getDb('socials');
+        if (empty($socials))
+            return $default;
+
+        foreach($socials as $row)
+            foreach($row as $f => $v)
+                $default[$row['code']][$f] = $v;
+
+        return $default;
+    }
+
+    public function getParams()
+    {
+        $paramsDefault = array(
+            'status' => 0,
+            'position' => 'right_center',
+            'margin' => array(10, 10),
+            'padding' => 5,
+            'width' => 50,
+            'background' => 0,
+            'background_color' => '',
+            'style_version' => 1
+        );
+
+
+        $params = $this->getDb('params');
+        if (empty($params))
+            return $paramsDefault;
+
+        foreach($params as $kget => $vget)
+            $paramsDefault[$kget]=$vget;
+
+        return $paramsDefault;
+    }
+
+    private function getHtml() {
+
+        $vars = array();
+        $vars['data'] = $this->getData();
+        $vars['icons'] = $this->getIcons($vars['data']);
+        $vars['params'] = $this->getParams();
+
+        $this->_html = '<link type="text/css" href="'.$this->prel.$this->pdata.'libs/bootstrap.min.css" rel="stylesheet"/>';
+
+        $this->_html .= '
+            <style type="text/css">
+              .share-buttons-item img {
+                    width: 50px;
+              }
+              .share-buttons-item {
+                    margin: 5px;
+                display: inline-block;
+              }
+              .share-buttons-list {
+                    width: 100%;
+                    display: block;
+                }
+            </style>
+         ';
+
+        $this->_html .= '
+            <form action="' . $_SERVER['REQUEST_URI'] . '" method="post" class="defaultForm form-horizontal" enctype="multipart/form-data">
+            <div class="panel">
+                <div class="panel-heading">' . $this->l('Settings') . '</div>
+        ';
+
+        $checked = $vars['params']['status'] ? ' checked' : '';
+        $this->_html .= '
+                <div class="form-group">
+                    <label class="control-label" for="input-status">' . $this->l('Status') . '</label>
+                    <div>
+                        <input type="hidden" name="params[status]" value="0">
+                        <input style="margin-top:10px;" id="input-status"  type="checkbox" name="params[status]" value="1"'.$checked.'>
+                    </div>
+                </div>
+        ';
+
+        $this->_html .= '
+        <table class="table">
+            <tr>
+                <th>
+                    Name
+                </th>
+                <th>
+                    Href
+                </th>
+                <th>
+                    Onclick
+                </th>
+                
+                <th>
+                    Active
+                </th>
+            </tr>
+            
+        ';
+
+        foreach( $vars['data'] as $val){
+            $this->_html .= '
+            <tr>
+            ';
+
+            $isactive = $val['active'] ? ' checked' : '';
+            $this->_html .= '
+                <td style="vertical-align: middle;">
+                    <input type="hidden" name="socials['.$val['code'].'][title]" value="' . $val['title'] . '"/>
+                    <input type="hidden" name="socials['.$val['code'].'][code]" value="' . $val['code'] . '"/>
+                    <input type="hidden" name="socials['.$val['code'].'][placeholder]" value="' . $val['placeholder'] . '"/>
+                    <input type="hidden" name="socials['.$val['code'].'][template_href]" value="' . $val['template_href'] . '"/>
+                    '.$val['title'].'
+                </td>
+                <td>
+                <input title="'.$val['placeholder'].'" class="form-control" placeholder="'.$val['placeholder'].'" id="validate_'.$val['code'].'" type="text" name="socials['.$val['code'].'][href]" value="' . $val['href'] . '"/>
+                </td>
+                <td>
+                <input type="text" class="form-control" name="socials['.$val['code'].'][onclick]" value="' . $val['onclick'] . '"/>
+                </td>
+                <td style="vertical-align: middle;">
+                    <input type="hidden" name="socials['.$val['code'].'][active]" value="0"/>
+                    <input type="checkbox" name="socials['.$val['code'].'][active]" value="1"'.$isactive.'/>
+                </td>
+            ';
+
+            $this->_html .= '
+            </tr>
+            ';
+        }
+
+
+
+        $this->_html .= '
+        </table>
+        <br><br>
+        ';
+
+        $selected['left_top'] = ($vars['params']['position'] == 'left_top') ? ' selected="selected"' : '';
+        $selected['right_top'] = ($vars['params']['position'] == 'right_top') ? ' selected="selected"' : '';
+        $selected['right_center'] = ($vars['params']['position'] == 'right_center') ? ' selected="selected"' : '';
+        $selected['left_center'] = ($vars['params']['position'] == 'left_center') ? ' selected="selected"' : '';
+        $selected['left_bottom'] = ($vars['params']['position'] == 'left_bottom') ? ' selected="selected"' : '';
+        $selected['right_bottom'] = ($vars['params']['position'] == 'right_bottom') ? ' selected="selected"' : '';
+
+        $this->_html .= '
+                <div class="form-group">
+                    <label class="control-label">' . $this->l('Position') . '</label>
+                    <div class="col-lg-4">
+                    <select name="params[position]" class="form-control" id="input-position">
+                        <option value="left_top"'.$selected['left_top'].'>' . $this->l('Left top') . '</option>
+                        <option value="right_top"'.$selected['right_top'].'>' . $this->l('Right top') . '</option>
+                        <option value="right_center"'.$selected['right_center'].'>' . $this->l('Right center') . '</option>
+                        <option value="left_center"'.$selected['left_center'].'>' . $this->l('Left center') . '</option>
+                        <option value="left_bottom"'.$selected['left_bottom'].'>' . $this->l('Left bottom') . '</option>
+                        <option value="right_bottom"'.$selected['right_bottom'].'>' . $this->l('Right bottom') . '</option>
+                     </select>
+                    </div>
+                </div>
+        ';
+
+
+        $this->_html .= '
+                <div class="form-group">
+                    <label class="control-label">' . $this->l('Show params') . '</label>
+                    <div >
+                        <input style="margin-top:10px;" id="show-params"  type="checkbox" value="1">
+                    </div>
+                </div>
+        ';
+
+
+        $this->_html .= '
+              <div id="position-params">
+                <div class="form-group">
+                    <label class="control-label col-lg-1">' . $this->l('Margin') . '</label>
+                    <div class="col-lg-1">
+                        <input type="number" class="form-control" name="params[margin][0]" value="'.$vars['params']['margin'][0].'">
+                    </div>
+                    <div id="col-input-margin-1" class="col-lg-1">
+                        <input type="number" class="form-control" name="params[margin][1]" value="'.$vars['params']['margin'][1].'">
+                    </div>
+            </div>
+        ';
+
+        $this->_html .= '
+                <div class="form-group">
+                    <label class="control-label col-lg-1">' . $this->l('Padding') . '</label>
+                    <div class="col-lg-1">
+                        <input type="number" class="form-control" name="params[padding]" value="'.$vars['params']['padding'].'">
+                    </div>
+                </div>
+        ';
+
+        $this->_html .= '
+                <div class="form-group">
+                    <label class="control-label col-lg-1">' . $this->l('Width') . '</label>
+                    <div class="col-lg-1">
+                        <input type="number" class="form-control" name="params[width]" value="'.$vars['params']['width'].'">
+                    </div>
+                </div>
+        ';
+
+        $checked = $vars['params']['background'] ? ' checked' : '';
+        $this->_html .= '
+                <div class="form-group">
+                    <label class="control-label col-lg-1">' . $this->l('Background') . '</label>
+                    <div class="col-lg-1">
+                        <input type="hidden" name="params[background]" value="0">
+                        <input style="margin-top:10px;" id="input-background"  type="checkbox" name="params[background]" value="1"'.$checked.'>
+                    </div>
+                </div>
+        ';
+
+        $this->_html .= '
+                <div class="form-group" id="background-color">
+                    <label class="control-label col-lg-1">' . $this->l('Background color') . '</label>
+                    <div class="col-lg-1">
+                        <input type="color" class="form-control" name="params[background_color]" value="'.$vars['params']['background_color'].'">
+                    </div>
+                </div>
+            </div>
+        ';
+
+        $this->_html .= '
+        <table id="module_style" class="table">
+            <thead>
+            <tr>
+                <td class="text-right" width="20px">Active</td>
+                <td class="text-left">Style type</td>
+            </tr>
+            </thead>
+            <tbody>';
+
+        foreach($this->getVersions() as $v):
+            $checked = $vars['params']['style_version'] == $v ? ' checked':'';
+
+            $this->_html .= '<tr>
+                    <td class="text-left" style="vertical-align: middle;">
+                        <input type="radio" name="params[style_version]" value="'.$v.'"'.$checked.'/>
+                    </td>
+                    <td class="text-left style_1">
+                        <!-- / Share buttons - Кнопки социальных сетей -->
+                        <div class="share-buttons-list">
+                        ';
+
+            foreach($vars['data'] as $code => $soc):
+                $icon = $vars['icons'][$code][$v];
+                if (empty($icon))
+                    continue;
+
+                $this->_html .= '
+                                <div class="share-buttons-item">
+                                        <img src="'.$icon.'">
+                                </div>
+                                ';
+            endforeach;
+
+            $this->_html .= '</div>
+                        <!-- / Share buttons - Кнопки социальных сетей -->
+                    </td>
+                </tr>';
+        endforeach;
+        $this->_html .= '</tbody>
+        </table><br><br>';
+
+
+        // Submit button
+        $this->_html .= '<p class="center"><input type="submit" name="submitUpdate" value="' . $this->l('Save Settings') . '" class="btn btn-default"></p>';
+
+
+        $this->_html .= '
+                </div>
+            </form>';
+
+        $inph = "<input name='form_key' type='hidden' value='(val)'>";
+
+        $this->_html .= '
+            <script type="text/javascript">
+                
+                require(["jquery", "'.$this->prel.$this->pdata.'libs/imask.js"],function($){
+                     $.noConflict();
+                      $(document).ready(function(){
+                          
+                          var inphidden = "'.$inph.'";
+                            inphidden = inphidden.replace("(val)", FORM_KEY)
+                            $("form").prepend(inphidden);
+            
+                          function is_checked(check, block) {
+                              if (check.is(":checked")) {
+                                  block.show();
+                              } else {
+                                  block.hide();
+                              }
+                          }
+                    
+                          function is_checked_position(check, block) {
+                              if (check.val() == "left_center" || check.val() == "right_center") {
+                                  block.hide();
+                              } else {
+                                  block.show();
+                              }
+                          }
+                    
+                    
+                          var bak = $("#input-background");
+                          var bak_col = $("#background-color");
+                          is_checked(bak, bak_col);
+                    
+                          bak.on("change", function(){
+                              is_checked($(this), bak_col);
+                          });
+                    
+                          var showparams = $("#show-params");
+                          var showparams_col = $("#position-params");
+                          is_checked(showparams, showparams_col);
+                    
+                          showparams.on("change", function(){
+                              is_checked($(this), showparams_col);
+                          });
+                    
+                          // select position
+                          var pos = $("#input-position");
+                          var pos_col = $("#col-input-margin-1");
+                          is_checked_position(pos, pos_col);
+                    
+                          pos.on("change", function(){
+                              is_checked_position($(this), pos_col);
+                          });
+                          
+                            var viber = new IMask(
+                                document.getElementById("validate_viber"),
+                                {
+                                    mask: "+num",
+                                    blocks: {
+                                        num: {
+                                            mask: Number,
+                                            thousandsSeparator:  " "
+                                        }
+                                    }
+                                });
+                    
+                            var whatsapp = new IMask(
+                                document.getElementById("validate_whatsapp"),
+                                {
+                                    mask: "num",
+                                    blocks: {
+                                        num: {
+                                            mask: Number,
+                                            thousandsSeparator: " "
+                                        }
+                                    }
+                                });
+                    
+                            var telegram = new IMask(
+                                document.getElementById("validate_telegram"),
+                                {
+                                    mask:  /^\D+$/,
+                                    blocks: {
+                                        num: {
+                                            mask: String,
+                                            thousandsSeparator: " "
+                                        }
+                                    }
+                                });
+                    
+                      });
+                });
+            </script>
+        ';
+        return  $this->_html;
+    }
+}
+
+$sb = new AdminShareButtons();
+echo $sb->show();
